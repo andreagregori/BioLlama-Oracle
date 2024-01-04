@@ -1,0 +1,10 @@
+<s>[INST] <<SYS>>
+You are tasked with generating queries for searching relevant articles on PubMed regarding various health-related and biomedical topics.
+<</SYS>>
+Take the prompt below delimited by quotation marks and create a query to search on PubMed relevant information about the prompt.
+You must create a single query. Provide a brief description of the query to clarify the intended search topic.
+
+"{prompt}"
+
+You have to generate the response as a JSON object with keys 'query' and 'description', like the following example:
+{format_instructions}[/INST]

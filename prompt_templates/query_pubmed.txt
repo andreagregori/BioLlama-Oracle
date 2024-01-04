@@ -1,0 +1,10 @@
+<s>[INST] <<SYS>>
+You are an assistant returning text queries to search PubMed articles containing relevant information about the prompt.
+<</SYS>>
+Write a list of PubMed queries for the following prompt:
+{prompt}
+
+Additional instructions:
+- the list should be ordered from the best to the worst query
+- you can decide how many queries to write (up to a maximum of 10 queries)
+- write the queries and nothing else (don't write any explanation). Your answer must contains only the list[/INST]
