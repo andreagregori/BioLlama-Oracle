@@ -84,6 +84,31 @@ def get_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
     return list_ab
 
 
+def get_dicts_from_pmids(pmid_list, database: str = 'pubmed'):
+    """
+    Function to obtain the dicts containing info af the articles given their id's.
+    Using rettype="medline" and retmode="text".
+    :param pmid_list: list of id's
+    :param database: name of database
+    :return: list of dicts containing id, title, authors and abstract
+    """
+    list_dict = []
+    if len(pmid_list) > 0:
+        pmid_str = ",".join(pmid_list)
+        handle = Entrez.efetch(db=database, id=pmid_str, rettype="medline", retmode="text")
+        records = Medline.parse(handle)
+        for paper in records:
+            try:
+                d = {'id': paper['PMID'], 'title': paper['TI'], 'authors': paper['AU'], 'abstract': paper['AB']}
+            except KeyError:
+                print(f"KeyError for {paper['PMID']}")
+            else:
+                list_dict.append(d)
+        handle.close()
+
+    return list_dict
+
+
 def get_text_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
     """
     Function to obtain the text of abstracts af the articles given their id's.
@@ -101,9 +126,8 @@ def get_text_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
 
 def test():
     query = "type 2 diabetes treatment options"
-    search_result = search_articles(query, max_results=5)
+    search_result = search_articles(query, max_results=10)
     dict_result = summary_articles(search_result)
-    print(dict_result)
-    li = get_abstracts_from_pmids(search_result)
-    for elem in li:
-        print(elem)
+    for i, elem in enumerate(dict_result):
+        print(f"{i+1}. {elem['title']}")
+

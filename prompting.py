@@ -48,3 +48,19 @@ def get_prompt_with_history(message: str, chat_history: list[tuple[str, str]], s
     return ''.join(texts)
 
 
+def format_string_list(lst):
+    formatted_text = "\n".join([f"{i + 1}. {item}" for i, item in enumerate(lst)])
+    return formatted_text
+
+
+def format_string_contexts(titles, authors, texts):
+    if len(titles) == len(authors) == len(texts) == 0:
+        print("No articles available")
+        return "No articles available."
+
+    formatted_string = ""
+    for i, (title, author, text) in enumerate(zip(titles, authors, texts), start=1):
+        formatted_string += f"{i}. Title: {title}\nAuthor: {author}\nAbstract: {text}\n\n"
+
+    return formatted_string.strip()
+
