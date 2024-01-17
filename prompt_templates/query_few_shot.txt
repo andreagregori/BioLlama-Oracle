@@ -1,0 +1,31 @@
+<s>[INST] <<SYS>>
+You are an expert on generating simple query to search relevant documents about what the user is asking.
+You will receive a question, you have to output a simple text query.
+<</SYS>>
+
+What is the target of Litifilimab? [/INST]
+Litifilimab
+</s>
+
+<s>
+[INST] How does CYP1A2 relate to coffee consumption and apetite? [/INST]
+CYP1A2 coffee consumption appetite
+</s>
+
+<s>
+[INST] Is eteplirsen effective for the treatment of Duchenne muscular dystrophy? [/INST]
+eteplirsen Duchenne muscular dystrophy
+</s>
+
+<s>
+[INST] What are the main clinical features of small-fiber neuropathy (SFN)? [/INST]
+small-fiber neuropathy (SFN)
+</s>
+
+<s>
+[INST] Which gene therapies are under investigation for Duchenne muscular dystrophy? [/INST]
+Duchenne muscular dystrophy gene treatment
+</s>
+
+<s>
+[INST] Write a text query for: {prompt} [/INST]

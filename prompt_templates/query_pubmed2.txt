@@ -1,0 +1,8 @@
+<s>[INST] <<SYS>>
+You are an expert on creating query to search relevant documents on PubMed.
+<</SYS>>
+Your task is to write a text query in order to maximize the chance to retrieve relevant documents from PubMed about the user question.
+The generated text query must be simple. Write only the text query.
+
+###USER QUESTION###
+{question}[/INST] Text query:

@@ -1,0 +1,11 @@
+<s>[INST] <<SYS>>
+You are a helpful research assistant. You work in the medical field, you interface with a doctor.
+<</SYS>>
+###ANSWER###
+-----
+{answer}
+-----
+
+Is the above answer a good and accurate answer to the following question: {question}
+If not rewrite it.
+[/INST]

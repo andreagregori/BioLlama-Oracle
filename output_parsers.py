@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import List
+import re
 
 
 class QueryPubMed(BaseModel):
@@ -13,5 +13,11 @@ class QueryPubMed(BaseModel):
     @property
     def description(self):
         return self.description
+
+
+def get_list_from_text(text: str):
+    pattern = re.compile(r'\d+\.\s+(.*?)\n')    # regular expression pattern to match list items
+    matches = pattern.findall(text)
+    return matches
 
 
