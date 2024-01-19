@@ -18,6 +18,7 @@ class QueryPubMed(BaseModel):
 def get_list_from_text(text: str):
     pattern = re.compile(r'\d+\.\s+(.*?)\n')    # regular expression pattern to match list items
     matches = pattern.findall(text)
+    matches = list(set(matches))
     return matches
 
 

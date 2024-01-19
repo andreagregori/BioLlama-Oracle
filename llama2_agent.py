@@ -29,7 +29,7 @@ class Agent:
         """
         Returns a query prompting the LLM with few-shot examples.
         """
-        self.user_query = user_query
+        #self.user_query = user_query
         prompt = get_prompt_template_with_vars('query_few_shot.txt', ['prompt'])
         llm_chain = LLMChain(llm=self.agent, prompt=prompt, verbose=False)
         output = llm_chain.predict(prompt=user_query)
@@ -42,38 +42,60 @@ class Agent:
         """
         Returns a query using the LLM to obtain the query as a json object.
         """
-        self.user_query = user_query
+        #self.user_query = user_query
         prompt = get_prompt_template_with_vars('query_pubmed_json2.txt', ['prompt', 'format_instructions'])
         llm_chain = LLMChain(llm=self.agent, prompt=prompt)
         format_instructions = """{\n"query": "put the query here",\n"description": "put the description here"\n}"""
         output = llm_chain.predict(prompt=user_query, format_instructions=format_instructions)
-        print(f"QUERY:\n{output}\n")
+        #print(f"QUERY:\n{output}\n")
 
         # Parsing the output
         pydantic_parser = PydanticOutputParser(pydantic_object=QueryPubMed)
         my_query = pydantic_parser.parse(output)
         self.query = my_query.query
-        return my_query
+        return my_query.query
 
-    def get_sub_queries(self, user_query: str):
+    def get_sub_questions(self, user_query: str):
         """
-        Returns a list of sub-queries related to the user question.
+        Returns a list of sub-questions related to the user question.
         """
         prompt = get_prompt_template_with_vars('generate_sub_queries.txt', ['question'])
         llm_chain = LLMChain(llm=self.agent, prompt=prompt, verbose=True)
         output = llm_chain.predict(question=user_query)
-        sub_queries = get_list_from_text(output)
+        sub_questions = get_list_from_text(output)
+        print(sub_questions)
+        return sub_questions
+
+    def get_sub_queries(self, sub_questions):
+        """
+        Returns a list of sub-queries related to the sub-questions.
+        """
+        sub_queries = []
+        for q in sub_questions:
+            sub_queries.append(self.get_query_json(q))
+        sub_queries = list(set(sub_queries))
         print(sub_queries)
         return sub_queries
 
-    def retrieve_pubmed_data(self, limit: int = 5):
+    def retrieve_pubmed_data(self, query: str, limit: int = 5):
         """
         Returns a list of dict containing the retrieved articles.
         Each dict represents an article and it contains: id, title, authors and abstract.
         """
-        print('Searching for articles using query: ', self.query)
-        search_result = search_articles(self.query, max_results=limit)
+        #print('Searching for articles using query: ', query)
+        search_result = search_articles(query, max_results=limit)
         list_dicts = get_dicts_from_pmids(search_result)
+        return list_dicts
+
+    def retrieve_pubmed_multi_queries(self, queries: list[str], limit: int = 3):
+        """
+        Returns a list of dict containing the retrieved articles, gathered using the list of queries.
+        """
+        result_list = []
+        for q in queries:
+            result_list.extend(search_articles(q, max_results=limit))
+        result_list = list(set(result_list))
+        list_dicts = get_dicts_from_pmids(result_list)
         return list_dicts
 
     def answer_from_context(self, context: str, question: str):
@@ -109,10 +131,18 @@ class Agent:
         return decremented_list
 
     def rag_with_pubmed(self,
+                        user_query: str,
                         n_papers: int = 10,
-                        choose_abstracts='provide_contexts'):
-
-        pubmed_dicts = self.retrieve_pubmed_data(n_papers)
+                        choose_abstracts='provide_contexts',
+                        sub_queries=True):
+        self.user_query = user_query
+        if sub_queries:
+            sub_questions = self.get_sub_questions(user_query)
+            sub_queries = self.get_sub_queries(sub_questions)
+            pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries)
+        else:
+            query = self.get_query_json(user_query)
+            pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
 
         if choose_abstracts == 'llm':
             # Selecting the best articles using the titles
@@ -142,8 +172,10 @@ class Agent:
             # TODO: embeddings with chromadb or others
             pass
 
-    def chain_of_notes(self, n_papers: int = 5):
-        pubmed_dicts = self.retrieve_pubmed_data(n_papers)
+    def chain_of_notes(self, user_query: str, n_papers: int = 5):
+        self.user_query = user_query
+        query = self.get_query_json(user_query)
+        pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
         prompt = get_prompt_template_with_vars('chain_of_notes.txt', ['question', 'articles_list'])
         llm_chain = LLMChain(
             llm=self.agent,
@@ -157,11 +189,9 @@ class Agent:
 
         return output
 
-    def interleaves_chain_of_thought(self,
-                                     n_papers: int = 5,
-                                     ):
-        pubmed_dicts = self.retrieve_pubmed_data(n_papers)
+    def interleaves_chain_of_thought(self, user_query: str, n_papers: int = 5):
         # TODO: to finish
+        pass
 
     def self_reflect(self, answer: str):
         prompt = get_prompt_template_with_vars('self_reflect.txt', ['answer', 'question'])

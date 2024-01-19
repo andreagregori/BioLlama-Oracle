@@ -4,6 +4,7 @@ from prompting import format_search_query_template
 
 agent = Agent(agent_model="llama2",
               temperature=0,
+              system='You are tasked with generating queries for searching relevant articles on PubMed regarding various health-related and biomedical topics.'
               #callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
               )
 
@@ -24,10 +25,15 @@ def test1():
     agent.get_sub_queries('What does an abscess look like?')'''
 
     question = 'Is anaphylaxis a results of mast cell activation?'
-    agent.get_sub_queries(question)
     #agent.get_query_json(question)
     #agent.get_query_few_shot(question)
-    #agent.rag_with_pubmed()
+    #agent.rag_with_pubmed(question)
+    #agent.rag_with_pubmed(question, sub_queries=True)
+    #agent.chain_of_notes(question)
+    #print(agent.run_prompt(question))
+    #agent.chain_of_notes(question)
+    #print(agent.run_prompt(question))
+    agent.run_chain_test(question)
 
 
 test1()
