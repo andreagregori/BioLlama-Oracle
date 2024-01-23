@@ -5,8 +5,9 @@ from langchain.output_parsers import CommaSeparatedListOutputParser
 
 from prompting import get_prompt_template_with_vars, format_string_list, format_string_contexts
 from output_parsers import QueryPubMed, get_list_from_text
-from retrievers.entrez_retriever import search_articles, get_dicts_from_pmids
+from retrievers.entrez_retriever import search_articles, get_dicts_from_pmids, get_urls_from_pmids
 from utility import write_qa_to_text_file
+from ollama_requests import generate_response
 import time
 
 
@@ -30,10 +31,11 @@ class Agent:
         Returns a query prompting the LLM with few-shot examples.
         """
         #self.user_query = user_query
-        prompt = get_prompt_template_with_vars('query_few_shot.txt', ['prompt'])
-        llm_chain = LLMChain(llm=self.agent, prompt=prompt, verbose=False)
-        output = llm_chain.predict(prompt=user_query)
-        query = output.split("\n")[0]
+        template = get_prompt_template_with_vars('query_few_shot2.txt', ['prompt'])
+        prompt = template.format(prompt=user_query)
+        output = generate_response(prompt)
+        response = output['response']
+        query = response.split("\n")[0]
         print(query)
         self.query = query
         return query
@@ -43,15 +45,16 @@ class Agent:
         Returns a query using the LLM to obtain the query as a json object.
         """
         #self.user_query = user_query
-        prompt = get_prompt_template_with_vars('query_pubmed_json2.txt', ['prompt', 'format_instructions'])
-        llm_chain = LLMChain(llm=self.agent, prompt=prompt)
+        template = get_prompt_template_with_vars('query_pubmed_json2.txt', ['prompt', 'format_instructions'])
         format_instructions = """{\n"query": "put the query here",\n"description": "put the description here"\n}"""
-        output = llm_chain.predict(prompt=user_query, format_instructions=format_instructions)
-        #print(f"QUERY:\n{output}\n")
+        prompt = template.format(prompt=user_query, format_instructions=format_instructions)
+        output = generate_response(prompt)
+        response = output['response']
+        print(f"QUERY:\n{response}\n")
 
         # Parsing the output
         pydantic_parser = PydanticOutputParser(pydantic_object=QueryPubMed)
-        my_query = pydantic_parser.parse(output)
+        my_query = pydantic_parser.parse(response)
         self.query = my_query.query
         return my_query.query
 
@@ -59,20 +62,24 @@ class Agent:
         """
         Returns a list of sub-questions related to the user question.
         """
-        prompt = get_prompt_template_with_vars('generate_sub_queries.txt', ['question'])
-        llm_chain = LLMChain(llm=self.agent, prompt=prompt, verbose=True)
-        output = llm_chain.predict(question=user_query)
-        sub_questions = get_list_from_text(output)
+        template = get_prompt_template_with_vars('generate_sub_queries.txt', ['question'])
+        prompt = template.format(question=user_query)
+        output = generate_response(prompt)
+        response = output['response']
+        sub_questions = get_list_from_text(response)
         print(sub_questions)
         return sub_questions
 
-    def get_sub_queries(self, sub_questions):
+    def get_sub_queries(self, sub_questions, json=True):
         """
         Returns a list of sub-queries related to the sub-questions.
         """
         sub_queries = []
         for q in sub_questions:
-            sub_queries.append(self.get_query_json(q))
+            if json:
+                sub_queries.append(self.get_query_json(q))
+            else:
+                sub_queries.append(self.get_query_few_shot(q))
         sub_queries = list(set(sub_queries))
         print(sub_queries)
         return sub_queries
@@ -99,31 +106,24 @@ class Agent:
         return list_dicts
 
     def answer_from_context(self, context: str, question: str):
-        prompt = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
-        llm_chain = LLMChain(
-            llm=self.agent,
-            prompt=prompt,
-            verbose=True
-        )
-        output = llm_chain.predict(context=context, question=question)
-        return output
+        template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
+        prompt = template.format(context=context, question=question)
+        output = generate_response(prompt, verbose=True)
+        response = output['response']
+        return response
 
-    def choose_best_articles(self, titles_list):
+    def choose_best_articles(self, titles_list: list[str]):
         """
         Use the LLM to choose the best articles from their titles.
         """
-        prompt = get_prompt_template_with_vars('choose_best_articles.txt', ['list_titles', 'question'])
-        llm_chain = LLMChain(
-            llm=self.agent,
-            prompt=prompt,
-            verbose=True
-        )
+        template = get_prompt_template_with_vars('choose_best_articles.txt', ['list_titles', 'question'])
         string_list = format_string_list(titles_list)
-        output = llm_chain.predict(list_titles=string_list, question=self.user_query)
+        prompt = template.format(list_titles=string_list, question=self.user_query)
+        output = generate_response(prompt)
 
         # Parsing the output
         output_parser = CommaSeparatedListOutputParser()
-        ordered_list = output_parser.parse(output)
+        ordered_list = output_parser.parse(output['response'])
         integer_list = [int(x) for x in ordered_list]
         decremented_list = [x - 1 for x in integer_list]
         print(decremented_list)
@@ -134,19 +134,24 @@ class Agent:
                         user_query: str,
                         n_papers: int = 10,
                         choose_abstracts='provide_contexts',
-                        sub_queries=True):
+                        json=False,
+                        sub_queries=False):
         self.user_query = user_query
         if sub_queries:
             sub_questions = self.get_sub_questions(user_query)
-            sub_queries = self.get_sub_queries(sub_questions)
-            pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries)
+            sub_queries = self.get_sub_queries(sub_questions, json)
+            pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries, limit=3)
         else:
-            query = self.get_query_json(user_query)
+            if json:
+                query = self.get_query_json(user_query)
+            else:
+                query = self.get_query_few_shot(user_query)
             pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
 
         if choose_abstracts == 'llm':
             # Selecting the best articles using the titles
             best_ab = self.choose_best_articles([d['title'] for d in pubmed_dicts if 'title' in d])
+            ids = [pubmed_dicts[i]['id'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             titles = [pubmed_dicts[i]['title'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             #authors = [pubmed_dicts[i]['authors'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             texts = [pubmed_dicts[i]['abstract'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
@@ -154,39 +159,40 @@ class Agent:
 
             response = self.answer_from_context(contexts, self.user_query)
             print(response)
+            urls = get_urls_from_pmids(ids)
             return response
 
         elif choose_abstracts == 'provide_contexts':
             # Feed the model with the first n_papers returned by PubMed
-            titles, authors, texts = get_info_from_dicts(pubmed_dicts)
+            ids, titles, authors, texts = get_info_from_dicts(pubmed_dicts)
             contexts = format_string_contexts(titles, texts)
-
             start_time = time.time()
             response = self.answer_from_context(contexts, self.user_query)
             end_time = time.time()
             print(response)
             print(f"Execution time: {end_time - start_time}")
+            urls = get_urls_from_pmids(ids)
             return response
 
         elif choose_abstracts == 'embeddings':
             # TODO: embeddings with chromadb or others
             pass
 
-    def chain_of_notes(self, user_query: str, n_papers: int = 5):
+    def chain_of_notes(self, user_query: str, n_papers: int = 5, json=False):
         self.user_query = user_query
-        query = self.get_query_json(user_query)
+        if json:
+            query = self.get_query_json(user_query)
+        else:
+            query = self.get_query_few_shot(user_query)
         pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
-        prompt = get_prompt_template_with_vars('chain_of_notes.txt', ['question', 'articles_list'])
-        llm_chain = LLMChain(
-            llm=self.agent,
-            prompt=prompt,
-            verbose=True
-        )
-        titles, _, texts = get_info_from_dicts(pubmed_dicts)
+        template = get_prompt_template_with_vars('chain_of_notes.txt', ['question', 'articles_list'])
+        ids, titles, _, texts = get_info_from_dicts(pubmed_dicts)
         articles_list = format_string_contexts(titles, texts)
-        output = llm_chain.predict(question=self.user_query, articles_list=articles_list)
-        print(output)
-
+        prompt = template.format(question=self.user_query, articles_list=articles_list)
+        output = generate_response(prompt)
+        response = output['response']
+        print(response)
+        urls = get_urls_from_pmids(ids)
         return output
 
     def interleaves_chain_of_thought(self, user_query: str, n_papers: int = 5):
@@ -194,19 +200,17 @@ class Agent:
         pass
 
     def self_reflect(self, answer: str):
-        prompt = get_prompt_template_with_vars('self_reflect.txt', ['answer', 'question'])
-        llm_chain = LLMChain(
-            llm=self.agent,
-            prompt=prompt,
-            verbose=True
-        )
-        output = llm_chain.predict(answer=answer, question=self.user_query)
-        print(output)
-        return output
+        template = get_prompt_template_with_vars('self_reflect.txt', ['answer', 'question'])
+        prompt = template.format(answer=answer, question=self.user_query)
+        output = generate_response(prompt)
+        response = output['response']
+        print(response)
+        return response
 
 
 def get_info_from_dicts(pubmed_dicts):
+    ids = [pubmed_dicts[i]['id'] for i in range(0, len(pubmed_dicts))]
     titles = [pubmed_dicts[i]['title'] for i in range(0, len(pubmed_dicts))]
     authors = [pubmed_dicts[i]['authors'] for i in range(0, len(pubmed_dicts))]
     texts = [pubmed_dicts[i]['abstract'] for i in range(0, len(pubmed_dicts))]
-    return titles, authors, texts
+    return ids, titles, authors, texts

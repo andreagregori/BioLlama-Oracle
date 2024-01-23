@@ -4,7 +4,6 @@ from prompting import format_search_query_template
 
 agent = Agent(agent_model="llama2",
               temperature=0,
-              system='You are tasked with generating queries for searching relevant articles on PubMed regarding various health-related and biomedical topics.'
               #callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
               )
 
@@ -33,7 +32,7 @@ def test1():
     #print(agent.run_prompt(question))
     #agent.chain_of_notes(question)
     #print(agent.run_prompt(question))
-    agent.run_chain_test(question)
+    agent.rag_with_pubmed(question)
 
 
 test1()

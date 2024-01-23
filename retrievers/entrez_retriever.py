@@ -124,6 +124,15 @@ def get_text_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
         handle.close()
 
 
+def get_urls_from_pmids(list_pmids: list[str]):
+    base_url = 'http://www.ncbi.nlm.nih.gov/pubmed/'
+    urls = []
+    for id in list_pmids:
+        urls.append(base_url + id)
+    print(urls)
+    return urls
+
+
 def test():
     query = "type 2 diabetes treatment options"
     search_result = search_articles(query, max_results=10)
