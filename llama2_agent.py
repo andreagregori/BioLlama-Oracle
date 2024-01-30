@@ -8,12 +8,14 @@ from output_parsers import QueryPubMed, get_list_from_text
 from retrievers.entrez_retriever import search_articles, get_dicts_from_pmids, get_urls_from_pmids
 from utility import write_qa_to_text_file
 from ollama_requests import generate_response
+from retrievers.medCPT_retriever import MedCPT
 import time
 
 
 class Agent:
-    def __init__(self, agent_model: str = "llama2", **kwargs):
-        self.agent = Ollama(model=agent_model, **kwargs)
+    def __init__(self, agent_model: str = "llama2", chunk_start=30, chunk_end=36, **kwargs):
+        self.agent = Ollama(model=agent_model, **kwargs)    # not using
+        self.med_cpt_retriever = MedCPT(chunk_start, chunk_end)
         self.user_query = None
         self.query = None
 
@@ -134,10 +136,14 @@ class Agent:
                         user_query: str,
                         n_papers: int = 10,
                         choose_abstracts='provide_contexts',
+                        med_cpt=False,
                         json=False,
                         sub_queries=False):
         self.user_query = user_query
-        if sub_queries:
+        if med_cpt:     # use medCPT as retriever
+            pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([user_query])
+            pubmed_dicts = get_dicts_from_pmids(pmids_list)
+        elif sub_queries:
             sub_questions = self.get_sub_questions(user_query)
             sub_queries = self.get_sub_queries(sub_questions, json)
             pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries, limit=3)
@@ -156,7 +162,6 @@ class Agent:
             #authors = [pubmed_dicts[i]['authors'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             texts = [pubmed_dicts[i]['abstract'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             contexts = format_string_contexts(titles, texts)
-
             response = self.answer_from_context(contexts, self.user_query)
             print(response)
             urls = get_urls_from_pmids(ids)
@@ -178,13 +183,17 @@ class Agent:
             # TODO: embeddings with chromadb or others
             pass
 
-    def chain_of_notes(self, user_query: str, n_papers: int = 5, json=False):
+    def chain_of_notes(self, user_query: str, n_papers: int = 5, med_cpt=False, json=False):
         self.user_query = user_query
-        if json:
-            query = self.get_query_json(user_query)
+        if med_cpt:
+            pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([user_query])
+            pubmed_dicts = get_dicts_from_pmids(pmids_list)
         else:
-            query = self.get_query_few_shot(user_query)
-        pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
+            if json:
+                query = self.get_query_json(user_query)
+            else:
+                query = self.get_query_few_shot(user_query)
+            pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
         template = get_prompt_template_with_vars('chain_of_notes.txt', ['question', 'articles_list'])
         ids, titles, _, texts = get_info_from_dicts(pubmed_dicts)
         articles_list = format_string_contexts(titles, texts)

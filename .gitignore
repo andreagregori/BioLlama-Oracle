@@ -2,6 +2,7 @@ Prove/
 .idea/
 .DS_Store
 outputs/
+faiss_indexes/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
