@@ -110,7 +110,7 @@ class Agent:
     def answer_from_context(self, context: str, question: str):
         template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
         prompt = template.format(context=context, question=question)
-        output = generate_response(prompt, verbose=True)
+        output = generate_response(prompt, verbose=False)
         response = output['response']
         return response
 
@@ -154,6 +154,8 @@ class Agent:
                 query = self.get_query_few_shot(user_query)
             pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
 
+        response = None
+        urls = None
         if choose_abstracts == 'llm':
             # Selecting the best articles using the titles
             best_ab = self.choose_best_articles([d['title'] for d in pubmed_dicts if 'title' in d])
@@ -163,9 +165,8 @@ class Agent:
             texts = [pubmed_dicts[i]['abstract'] for i in best_ab if 0 <= i < len(pubmed_dicts)]
             contexts = format_string_contexts(titles, texts)
             response = self.answer_from_context(contexts, self.user_query)
-            print(response)
+            #print(response)
             urls = get_urls_from_pmids(ids)
-            return response
 
         elif choose_abstracts == 'provide_contexts':
             # Feed the model with the first n_papers returned by PubMed
@@ -174,14 +175,15 @@ class Agent:
             start_time = time.time()
             response = self.answer_from_context(contexts, self.user_query)
             end_time = time.time()
-            print(response)
-            print(f"Execution time: {end_time - start_time}")
+            #print(response)
+            #print(f"Execution time: {end_time - start_time}")
             urls = get_urls_from_pmids(ids)
-            return response
 
         elif choose_abstracts == 'embeddings':
-            # TODO: embeddings with chromadb or others
+            # TODO: embeddings with chromadb or others (MedCPT)
             pass
+
+        return response, urls
 
     def chain_of_notes(self, user_query: str, n_papers: int = 5, med_cpt=False, json=False):
         self.user_query = user_query
@@ -200,9 +202,9 @@ class Agent:
         prompt = template.format(question=self.user_query, articles_list=articles_list)
         output = generate_response(prompt)
         response = output['response']
-        print(response)
+        #print(response)
         urls = get_urls_from_pmids(ids)
-        return output
+        return response, urls
 
     def interleaves_chain_of_thought(self, user_query: str, n_papers: int = 5):
         # TODO: to finish

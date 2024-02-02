@@ -129,7 +129,7 @@ def get_urls_from_pmids(list_pmids: list[str]):
     urls = []
     for id in list_pmids:
         urls.append(base_url + id)
-    print(urls)
+    #print(urls)
     return urls
 
 

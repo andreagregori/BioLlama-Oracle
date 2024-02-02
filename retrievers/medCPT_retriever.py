@@ -93,7 +93,7 @@ class MedCPT:
 
     def search_in_all_chunks(self, queries):
         for num in range(self.chunk_start, self.chunk_end + 1):
-            print(f"Searching on chunk {num} ...")
+            #print(f"Searching on chunk {num} ...")
             self.load_pmids(num)
             self.read_index(faiss_dir + f'chunk{num}FlatIP.index')
             search_results = self.search_queries(queries)
@@ -123,9 +123,9 @@ class MedCPT:
         top_results = [{"PMID": pmid, "Score": score} for pmid, score in top_pmid_scores]
         top_pmids = [result["PMID"] for result in top_results]
 
-        print(f"\nTOP {top_n} RESULTS")
+        '''print(f"\nTOP {top_n} RESULTS")
         for result in top_results:
-            print(f"PMID: {result['PMID']}; Score: {result['Score']}")
+            print(f"PMID: {result['PMID']}; Score: {result['Score']}")'''
 
         return top_pmids
 
