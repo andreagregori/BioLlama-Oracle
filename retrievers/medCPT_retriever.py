@@ -2,8 +2,7 @@ import faiss
 import torch
 import numpy as np
 import json
-import time
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
 
 faiss_dir = 'faiss_indexes/'
 emb_dir = '../PubMed_embeddings/'
@@ -91,6 +90,27 @@ class MedCPT:
 
         return results
 
+    def create_emb_article(self, articles):
+        """
+        Computes the embeddings of articles
+        """
+        with torch.no_grad():
+            # tokenize the queries
+            encoded = self.tokenizer(
+                articles,
+                truncation=True,
+                padding=True,
+                return_tensors='pt',
+                max_length=512,
+            )
+
+            # encode the queries (use the [CLS] last hidden states as the representations)
+            embeds = self.model(**encoded).last_hidden_state[:, 0, :]
+
+            print(embeds)
+            print(embeds.size())
+        return embeds
+
     def search_in_all_chunks(self, queries):
         for num in range(self.chunk_start, self.chunk_end + 1):
             #print(f"Searching on chunk {num} ...")
@@ -140,6 +160,26 @@ def read_embeds_chunk(chunk_number):
     chunk_embeds = np.load(embeds_path)
     return chunk_embeds
 
+
+class MedCPTCrossEncoder:
+    def __init__(self):
+        self.tokenizer = AutoTokenizer.from_pretrained("ncbi/MedCPT-Cross-Encoder")
+        self.model = AutoModelForSequenceClassification.from_pretrained("ncbi/MedCPT-Cross-Encoder")
+
+    def get_ranks_articles(self, query, articles):
+        pairs = [[query, article] for article in articles]
+        with torch.no_grad():
+            encoded = self.tokenizer(
+                pairs,
+                truncation=True,
+                padding=True,
+                return_tensors="pt",
+                max_length=512,
+            )
+            logits = self.model(**encoded).logits.squeeze(dim=1)    # Higher scores indicate higher relevance
+
+        scores, indices = torch.sort(logits, descending=True)
+        return scores, indices
 
 # Example usage:
 '''chunk_start = 30

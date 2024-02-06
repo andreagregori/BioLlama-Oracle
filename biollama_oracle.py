@@ -33,7 +33,7 @@ def test1():
     #print(agent.run_prompt(question))
     #agent.chain_of_notes(question)
     #print(agent.run_prompt(question))
-    agent.rag_with_pubmed(question)
+    agent.rag_with_pubmed(question, sub_queries=True)
 
 
 def test_on_bio_asq():
@@ -42,10 +42,10 @@ def test_on_bio_asq():
     for q in dataset:
         print(f"Processing: {q['body']} ...")
         try:
-            with open('outputs/CoN.txt', 'a') as file:
+            with open('outputs/rag_query_and_medcpt.txt', 'a') as file:
                 file.write(f"Q: {q['body']}\n\n")
                 start_t = time.time()
-                response, urls = agent.chain_of_notes(q['body'])
+                response, urls = agent.rag_with_pubmed(q['body'], query_and_medcpt=True)
                 end_t = time.time()
                 print(f"Execution time: {end_t - start_t}")
                 file.write('A: ' + response)
@@ -60,4 +60,4 @@ def test_on_bio_asq():
     print(f"Total execution time: {end_dataset - start_dataset}")
 
 
-test_on_bio_asq()
+test1()
