@@ -1,0 +1,14 @@
+<s>[INST] <<SYS>>
+Task description:
+1. Read the articles and the question provided.
+2. You may be provided also with scraps of the answer.
+3. If the provided articles contain the answer to the question, just write "The answer is: " followed by your answer, it must be based only on the provided context.
+<</SYS>>
+-------
+{articles}
+-------
+
+Q: Answer the following question by reasoning step-by-step.
+{question}
+A: {cot_sents}
+[/INST]

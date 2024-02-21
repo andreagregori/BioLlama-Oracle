@@ -1,14 +1,15 @@
 <s>[INST] <<SYS>>
 Task description:
 1. Read the articles and the question provided.
-2. Write a text query to find more relevant articles that may contain information useful to answer the question.
-3. The query should be used to retrieve new articles and not the ones already provided.
-4. If the provided articles contain the answer to the question, just say "The answer is: " and write the answer based only on the provided context.
-5. You will receive also the previous query generated.
+2. Write a new query to find more relevant articles that may contain information useful to answer the question.
+3. You may be provided with the previous queries.
+4. The new query should be used to retrieve new articles and not the ones already provided.
+5. If the provided articles contain the answer to the question, just say "Stop".
 <</SYS>>
-
+-------
 {articles}
+-------
 
 Q: {question}
-A: {cot_sents}
-[/INST]
+PREVIOUS QUERIES: {cot_sents}
+[/INST] New query:

@@ -1,5 +1,5 @@
 from llama2_agent import Agent
-from utility import read_json_file, count_correct_urls
+from utility import read_json_file, count_correct_urls, print_articles
 import time
 
 
@@ -10,21 +10,8 @@ agent = Agent(agent_model="llama2",
 
 
 def test1():
-    '''agent.rag_with_pubmed('What are the treatment options for individuals diagnosed with Type 2 diabetes?', n_papers=5)
-    agent.rag_with_pubmed('Sitting for a long time is dangerous?', n_papers=5)
-    agent.chain_of_notes('What are the treatment options for individuals diagnosed with Type 2 diabetes?', n_papers=5)
-    agent.rag_with_pubmed('What are the common risk factors for developing osteoporosis?')
-    agent.rag_with_pubmed('What are the effects on blood pressure due to air pollution?',  n_papers=10)
-    agent.rag_with_pubmed('Is the aspartame carcinogenic? Search only in recent studies.')
 
-    agent.get_sub_queries('How does the storage and handling of vaccines affect their efficacy?')
-    agent.run_chain_test('What are the common risk factors for developing osteoporosis?')
-
-    response = agent.rag_with_pubmed('Is Rheumatoid Arthritis more common in men or women?')
-    agent.self_reflect(response)
-    agent.get_sub_queries('What does an abscess look like?')'''
-
-    question = 'Is anaphylaxis a results of mast cell activation?'
+    question = 'Do mutations in KCNT2 only cause phenotypes with epilepsy?'
     #agent.get_query_json(question)
     #agent.get_query_few_shot(question)
     #agent.rag_with_pubmed(question)
@@ -33,7 +20,9 @@ def test1():
     #print(agent.run_prompt(question))
     #agent.chain_of_notes(question)
     #print(agent.run_prompt(question))
-    agent.rag_with_pubmed(question, sub_queries=True)
+    articles = agent.interleaves_chain_of_thought(question)
+    # print_articles(articles)
+    agent.chain_of_thoughts(articles)
 
 
 def test_on_bio_asq():

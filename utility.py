@@ -12,6 +12,13 @@ def print_dict_structure(d, indent=2):
     print(formatted_json)
 
 
+def print_articles(list_dicts):
+    articles_string = ""
+    for paper in list_dicts:
+        articles_string += f"{paper['id']}\nArticle title: {paper['title']}\n{paper['abstract']}\n\n"
+    print(articles_string)
+
+
 def write_qa_to_text_file(question, answer, filename):
     try:
         with open(filename, 'a') as file:  # 'a' appends to the file

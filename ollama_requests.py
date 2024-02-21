@@ -11,7 +11,7 @@ def generate_response(prompt: str,
                       ):
     """
     Uses the ollama API to generate a response.
-    This functions uses the option raw=True so, the provided prompt must a full prompt (with the special tokens).
+    This functions uses the option raw=True so, the provided prompt must be a full prompt (with the special tokens).
     """
     if verbose:
         print(prompt)

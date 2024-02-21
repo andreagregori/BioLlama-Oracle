@@ -8,7 +8,8 @@ from output_parsers import QueryPubMed, get_list_from_text
 from retrievers.entrez_retriever import search_articles, get_dicts_from_pmids, get_urls_from_pmids
 from ollama_requests import generate_response
 from retrievers.medCPT_retriever import MedCPT, MedCPTCrossEncoder
-import time, numpy as np
+import time
+import numpy as np
 
 
 class Agent:
@@ -235,9 +236,69 @@ class Agent:
         urls = get_urls_from_pmids(ids)
         return response, urls
 
-    def interleaves_chain_of_thought(self, user_query: str, n_papers: int = 5):
-        # TODO: to finish
-        pass
+    def interleaves_chain_of_thought(self,
+                                     user_query: str,
+                                     k: int = 3,
+                                     n_steps: int = 2,
+                                     med_cpt=False,
+                                     json=False):
+        """
+        Retrieves a base set of k articles and uses Interleaves CoT to retrieve new articles.
+        It provides to the LLM the articles retrieved so far and also the query used so far.
+        """
+        # Retriving a base set of k articles
+        self.user_query = user_query
+        if med_cpt:
+            query = user_query
+            pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([user_query])
+            pubmed_dicts = get_dicts_from_pmids(pmids_list)
+        else:
+            if json:
+                query = self.get_query_json(user_query)
+            else:
+                query = self.get_query_few_shot(user_query)
+            pubmed_dicts = self.retrieve_pubmed_data(query, k)
+
+        template = get_prompt_template_with_vars('interleaves_CoT_reason3.txt', ['articles', 'question', 'cot_sents'])
+        CoT_queries = [query]
+        for i in range(0, n_steps):
+            ids, titles, _, texts = get_info_from_dicts(pubmed_dicts)
+            articles_list = format_string_contexts(titles, texts)
+            cot_sents = ', '.join(map(str, CoT_queries))
+            prompt = template.format(articles=articles_list, question=self.user_query, cot_sents=cot_sents)
+            output = generate_response(prompt, verbose=False)
+            response = output['response']
+            new_query = response.split("\n")[0]
+            CoT_queries.append(new_query)
+            print("New query: " + new_query)
+
+            # Retrieving new articles
+            temp = self.retrieve_pubmed_data(new_query, k)
+            if len(temp) == 0:  # Stop if there are no more new articles
+                print("Fine")
+                break
+            for elem in temp:   # ignoring duplicated articles
+                if elem not in pubmed_dicts:
+                    pubmed_dicts.append(elem)
+                else:
+                    print("Duplicated article")
+        
+        return pubmed_dicts
+    
+
+    def chain_of_thoughts(self, articles_list):
+        """
+        Answer the question using the provided articles reasoning step by step.
+        """
+        _, titles, _, texts = get_info_from_dicts(articles_list)
+        context = format_string_contexts(titles, texts)
+        template = get_prompt_template_with_vars('answer_using_CoT.txt', ['context', 'question'])
+        prompt = template.format(context=context, question=self.user_query)
+        output = generate_response(prompt, verbose=True)
+        response = output['response']
+        print(response)
+        return response    
+
 
     def self_reflect(self, answer: str):
         template = get_prompt_template_with_vars('self_reflect.txt', ['answer', 'question'])
