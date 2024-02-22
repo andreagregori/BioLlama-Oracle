@@ -20,9 +20,10 @@ def test1():
     #print(agent.run_prompt(question))
     #agent.chain_of_notes(question)
     #print(agent.run_prompt(question))
-    articles = agent.interleaves_chain_of_thought(question)
-    # print_articles(articles)
-    agent.chain_of_thoughts(articles)
+    agent.retrieve_articles_pubmed(question, n_papers=5, med_cpt=True)
+    articles = agent.interleaves_chain_of_thought(verbose=False)
+    print_articles(articles)
+    
 
 
 def test_on_bio_asq():

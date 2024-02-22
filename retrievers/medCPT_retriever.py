@@ -125,7 +125,7 @@ class MedCPT:
                 for r in result['Results']:
                     print(f"PMID: {r['PMID']}; Score: {r['Score']}")'''
 
-    def combine_results(self, top_n=10):
+    def combine_results(self, top_n):
         combined_scores = {}
 
         # Combine scores from different results
@@ -150,9 +150,9 @@ class MedCPT:
 
         return top_pmids
 
-    def retrieve_documents_pmids(self, queries):
+    def retrieve_documents_pmids(self, queries, n_paper=10):
         self.search_in_all_chunks(queries)
-        tot_pmids = self.combine_results()
+        tot_pmids = self.combine_results(top_n=n_paper)
         return tot_pmids
 
 

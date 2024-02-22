@@ -7,6 +7,7 @@ Entrez.email = "andrea.gregori@studenti.unipd.it"     # Mandatory
 def search_articles(query, database='pubmed', max_results=5, sort_method='relevance') -> list[str]:
     """
     Function to search in the NCBI's databases
+
     :param query: string containing what to search
     :param database: name of database
     :param max_results: maximum number of result
@@ -28,6 +29,7 @@ def search_articles(query, database='pubmed', max_results=5, sort_method='releva
 def summary_articles(pmid_list: list[str], database: str = 'pubmed'):
     """
     Function to do a summary of articles given their id's.
+
     :param pmid_list: list of id's
     :param database: name of database
     :return: a list of dictionaries containing id, title and author list.
@@ -49,6 +51,7 @@ def summary_articles(pmid_list: list[str], database: str = 'pubmed'):
 def get_abstracts_from_pmids2(pmid_list, database: str = 'pubmed'):
     """
     Function to obtain the abstracts af the articles given their id's.
+
     :param pmid_list: list of id's
     :param database: name of database
     :return: list of abstracts
@@ -68,6 +71,7 @@ def get_abstracts_from_pmids2(pmid_list, database: str = 'pubmed'):
 def get_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
     """
     Function to obtain the abstracts af the articles given their id's. Using rettype="medline" and retmode="text".
+
     :param pmid_list: list of id's
     :param database: name of database
     :return: list of abstracts
@@ -88,6 +92,7 @@ def get_dicts_from_pmids(pmid_list, database: str = 'pubmed'):
     """
     Function to obtain the dicts containing info af the articles given their id's.
     Using rettype="medline" and retmode="text".
+
     :param pmid_list: list of id's
     :param database: name of database
     :return: list of dicts containing id, title, authors and abstract
@@ -113,6 +118,7 @@ def get_text_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
     """
     Function to obtain the text of abstracts af the articles given their id's.
     Using retmode='text' and rettype='abstract'.
+    
     :param pmid_list: list of id's
     :param database: name of database
     """
