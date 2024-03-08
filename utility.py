@@ -104,12 +104,29 @@ def select_questions_BioASQ(questions, dataset_path):
     return data
 
 
-def count_correct_urls(gt_utls, urls):
+def count_correct_urls(gt_urls, urls):
     count = 0
     for u in urls:
-        if u in gt_utls:
+        if u in gt_urls:
             count += 1
     return count
+
+
+def get_ids_from_urls(documents: list[str]) -> list[str]:
+    """
+    Returns the pmids inside the given list of urls.
+
+    Args:
+        documents (list[str]): list of urls.
+
+    Returns:
+        list[str]: list of pmids.
+    """
+    ids = []
+    for url in documents:
+        id = url.split("/")[-1]
+        ids.append(id)
+    return ids
 
 
 '''questions = read_questions_from_file('../questions1_BioASQ.txt')

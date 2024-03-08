@@ -1,5 +1,7 @@
 from llama2_agent import Agent
-from utility import read_json_file, count_correct_urls, print_articles
+from llama2_agent import get_info_from_dicts
+from utility import read_json_file, count_correct_urls, print_articles, get_ids_from_urls, write_json_file
+from eval.retrieval_eval import *
 import time
 
 
@@ -23,31 +25,45 @@ def test1():
     agent.retrieve_articles_pubmed(question, n_papers=5, med_cpt=True)
     articles = agent.interleaves_chain_of_thought(verbose=False)
     print_articles(articles)
-    
 
 
-def test_on_bio_asq():
+def test_on_bio_asq_to_json(output_path: str):
     dataset = read_json_file('../datasets/questions1_BioASQ.json')
     start_dataset = time.time()
+    data_res = []
     for q in dataset:
         print(f"Processing: {q['body']} ...")
-        try:
-            with open('outputs/rag_query_and_medcpt.txt', 'a') as file:
-                file.write(f"Q: {q['body']}\n\n")
-                start_t = time.time()
-                response, urls = agent.rag_with_pubmed(q['body'], query_and_medcpt=True)
-                end_t = time.time()
-                print(f"Execution time: {end_t - start_t}")
-                file.write('A: ' + response)
-                gt_num_urls = len(q['documents'])
-                correct_urls = count_correct_urls(q['documents'], urls)
-                file.write(f"\n\nIDEAL: {q['ideal_answer']}")
-                file.write(f"\n\nARTICLES: {len(urls)} articles found, "
-                           f"{correct_urls}/{gt_num_urls} are in the ground truth.\n\n-----------\n\n")
-        except Exception as e:
-            print(f"Error: {e}")
+        
+        start_t = time.time()
+        agent.retrieve_articles_pubmed(q['body'])
+
+        response = agent.answer_from_context()      # change this to test other methods
+        
+        end_t = time.time()
+        print(f"Execution time: {end_t - start_t}")
+
+        # Retrieval evaluation
+        gt_pmids = get_ids_from_urls(q['documents'])
+        actual_pmids, *_ = get_info_from_dicts(agent.articles)
+        recall = recall_at_k(gt_pmids, actual_pmids)
+        precision = precision_at_k(gt_pmids, actual_pmids)
+        f1 = f1_at_k(gt_pmids, actual_pmids)
+
+        # Generation evaluation
+        # TODO: try ragas framework
+
+        item = {'question': q['body'], 'answer': response, 'ideal_answer': q['ideal_answer'],
+                'gt_pmids': gt_pmids, 'actual_pmids': actual_pmids,
+                'recall': recall, 'precision': precision, 'f1': f1}
+        data_res.append(item)
+
+    try:
+        print(type(data_res))
+        write_json_file(output_path, data_res)
+    except Exception as e:
+        print(f"Error: {e}")
     end_dataset = time.time()
     print(f"Total execution time: {end_dataset - start_dataset}")
 
 
-test1()
+test_on_bio_asq_to_json('outputs/rag.json')

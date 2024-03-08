@@ -32,7 +32,7 @@ class Agent:
 
     def get_query_few_shot(self, user_query: str) -> str:
         """
-        Returns a query prompting the LLM with few-shot examples.
+        Returns a query prompting the LLM with few-shot examples. Before 
 
         Args:
             user_query (str): the user question.
@@ -208,22 +208,6 @@ class Agent:
         list_dicts = get_dicts_from_pmids(result_list)
         return list_dicts
 
-    def answer_from_context(self, context: str, question: str) -> str:
-        """
-        Generate answer from the context.
-
-        Args:
-            context (str): text coming from the articles.
-            question (str): the user question.
-
-        Returns:
-            str: response.
-        """
-        template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
-        prompt = template.format(context=context, question=question)
-        output = generate_response(prompt, verbose=True)
-        response = output['response']
-        return response
 
     def choose_best_articles(self, titles_list: list[str]):
         """
@@ -288,6 +272,25 @@ class Agent:
             pass
         print(response)
         return response, urls
+    
+    def answer_from_context(self, verbose=False) -> str:
+        """
+        Generate answer from the context.
+
+        Args:
+            verbose (bool, optional):  if True, print the prompt for the LLM. Defaults to False.
+
+        Returns:
+            str: response.
+        """
+        _, titles, _, texts = get_info_from_dicts(self.articles)
+        contexts = format_string_contexts(titles, texts)
+        template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
+        prompt = template.format(context=contexts, question=self.user_query)
+        output = generate_response(prompt, verbose=verbose)
+        response = output['response']
+        # print(response)
+        return response
 
     def chain_of_notes(self, verbose=False) -> str:
         """
@@ -310,10 +313,10 @@ class Agent:
 
     def interleaves_chain_of_thought(self, k: int=3, n_steps: int=2, verbose=False) -> list[dict]:
         """
-        Uses the articles contained in self.articles as base set. Theb uses Interleaves CoT to retrieve k*n_steps new articles.
+        Uses the articles contained in self.articles as base set. Then uses Interleaves CoT to retrieve k*n_steps new articles.
 
         Args:
-            k (int, optional): number of articles to retrieve at each retrive step. Defaults to 3.
+            k (int, optional): number of articles to retrieve at each retrieve step. Defaults to 3.
             n_steps (int, optional): number of time to repeat the reason and retrieve step. Defaults to 2.
             verbose (bool, optional): if True, print the prompt for the LLM. Defaults to False.
 
@@ -369,7 +372,7 @@ class Agent:
 
     def self_reflect(self, answer: str, verbose=False) -> str:
         """
-        Uses the LLM to check if the given answer is suffucient.
+        Uses the LLM to check if the given answer is sufficient.
 
         Args:
             answer (str): the answer to check.
