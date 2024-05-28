@@ -1,6 +1,7 @@
 from llama2_agent import Agent
 from llama2_agent import get_info_from_dicts
 from utility import read_json_file, count_correct_urls, print_articles, get_ids_from_urls, write_json_file
+from retrievers.entrez_retriever import get_dicts_from_pmids
 from eval.retrieval_eval import *
 import time
 
@@ -44,6 +45,7 @@ def test_on_bio_asq_to_json(output_path: str):
 
         # Retrieval evaluation
         gt_pmids = get_ids_from_urls(q['documents'])
+        gt_articles = get_dicts_from_pmids(gt_pmids)
         actual_pmids, *_ = get_info_from_dicts(agent.articles)
         recall = recall_at_k(gt_pmids, actual_pmids)
         precision = precision_at_k(gt_pmids, actual_pmids)
@@ -53,7 +55,7 @@ def test_on_bio_asq_to_json(output_path: str):
         # TODO: try ragas framework
 
         item = {'question': q['body'], 'answer': response, 'ideal_answer': q['ideal_answer'],
-                'gt_pmids': gt_pmids, 'actual_pmids': actual_pmids,
+                'gt_articles': gt_articles, 'retrieved_articles': agent.articles,
                 'recall': recall, 'precision': precision, 'f1': f1}
         data_res.append(item)
 
@@ -66,4 +68,5 @@ def test_on_bio_asq_to_json(output_path: str):
     print(f"Total execution time: {end_dataset - start_dataset}")
 
 
-test_on_bio_asq_to_json('outputs/rag.json')
+#test_on_bio_asq_to_json('outputs/rag.json')
+test1()

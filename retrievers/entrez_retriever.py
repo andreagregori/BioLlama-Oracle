@@ -90,7 +90,7 @@ def get_abstracts_from_pmids(pmid_list, database: str = 'pubmed'):
 
 def get_dicts_from_pmids(pmid_list, database: str = 'pubmed'):
     """
-    Function to obtain the dicts containing info af the articles given their id's.
+    Function to obtain the dicts containing info of the articles given their id's.
     Using rettype="medline" and retmode="text".
 
     :param pmid_list: list of id's
