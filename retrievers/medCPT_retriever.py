@@ -153,6 +153,7 @@ class MedCPT:
     def retrieve_documents_pmids(self, queries, n_paper=10):
         self.search_in_all_chunks(queries)
         tot_pmids = self.combine_results(top_n=n_paper)
+        self.total_results = []     # initializing for next query
         return tot_pmids
 
 

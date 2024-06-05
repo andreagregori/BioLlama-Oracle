@@ -1,12 +1,89 @@
-from openai import OpenAI
-client = OpenAI()
+from datasets import load_from_disk
+from ragas.metrics import (
+    answer_relevancy,
+    faithfulness,
+    context_recall,
+    context_relevancy,
+    context_precision,
+    answer_similarity,
+    answer_correctness
+)
+from ragas import evaluate
+import plotly.graph_objects as go
 
-completion = client.chat.completions.create(
-  model="gpt-3.5-turbo",
-  messages=[
-    {"role": "system", "content": "You are a poetic assistant, skilled in explaining complex programming concepts with creative flair."},
-    {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
-  ]
+def plot_graph_for_ragas(res, file_name):
+  # data = {
+  #     'context_relevancy': res['context_relevancy'],
+  #     'faithfulness': res['faithfulness'],
+  #     'answer_relevancy': res['answer_relevancy'],
+  #     'context_recall': res['context_recall'],
+  #     'answer_correctness': res['answer_correctness'],
+  #     'answer_similarity': res['answer_similarity']
+  # }
+
+  data = {
+      'context_relevancy':  0.6028,
+      'faithfulness': 0.7996,
+      'answer_relevancy': 0.6087,
+      'context_recall':  0.6306,
+      'answer_correctness': 0.4608,
+      'answer_similarity': 0.6235
+  }
+
+
+  fig = go.Figure()
+
+  fig.add_trace(go.Scatterpolar(
+      r=list(data.values()),
+      theta=list(data.keys()),
+      fill='toself',
+      name='RAG'
+  ))
+
+  fig.update_layout(
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[0, 1]
+        ),
+        domain=dict(
+            x=[0.1, 0.9],  # Horizontal domain (reduce to make the plot smaller)
+            y=[0.1, 0.9]   # Vertical domain (reduce to make the plot smaller)
+        )
+    ),
+    width=850,
+    font=dict(
+        size=24  # Increase general font size
+    ),
+    margin=dict(l=0, r=0, t=0, b=0)  # Set all margins to zero
 )
 
-print(completion.choices[0].message)
+  #fig.show()
+  fig.write_image('outputs/plots/' + file_name + '.png')
+
+
+file_name = 'chain_of_notes_1'
+path = 'outputs/' + file_name
+
+loaded_dataset = load_from_disk(path)
+print(loaded_dataset)
+# #subset_dataset = loaded_dataset.select(range(5))
+
+result = evaluate(
+    loaded_dataset,
+    metrics=[
+        faithfulness,
+        answer_relevancy,
+        context_recall,
+        context_relevancy,
+        answer_similarity,
+        answer_correctness
+    ],
+    raise_exceptions=False
+)
+print(result)
+df = result.to_pandas()
+df.to_csv(path + '_RAGAS.csv')
+
+
+plot_graph_for_ragas(result, file_name=file_name)

@@ -7,4 +7,4 @@ You must create a single query. Provide a brief description of the query to clar
 "{prompt}"
 
 You have to generate the response as a JSON object with keys 'query' and 'description', like the following example:
-{format_instructions}[/INST]
+{format_instructions}[/INST] Write the JSON: 

@@ -1,4 +1,3 @@
-from langchain.llms import Ollama
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from langchain.output_parsers import CommaSeparatedListOutputParser
@@ -14,11 +13,11 @@ import numpy as np
 
 class Agent:
     def __init__(self, agent_model: str = "llama2", chunk_start=30, chunk_end=36, **kwargs):
-        self.agent = Ollama(model=agent_model, **kwargs)    # not using
+        #self.agent = Ollama(model=agent_model, **kwargs)    # not using
         self.med_cpt_retriever = MedCPT(chunk_start, chunk_end)
         self.med_cpt_cross_enc = MedCPTCrossEncoder()
         self.user_query = None
-        self.query = None
+        self.queries = []
         self.articles = None
 
     def run_prompt(self, prompt):
@@ -45,9 +44,21 @@ class Agent:
         prompt = template.format(prompt=user_query)
         output = generate_response(prompt)
         response = output['response']
+        #print(response)
         query = response.split("\n")[0]
-        self.query = query
         return query
+    
+    def get_query_test(self, user_query: str, template_name:str, variable:str) -> str:
+        """
+        TEST
+        """
+        #self.user_query = user_query
+        template = get_prompt_template_with_vars(template_name, [variable])
+        prompt = template.format(question=user_query)
+        output = generate_response(prompt, verbose=True)
+        response = output['response']
+        print(response)
+        return response
 
     def get_query_json(self, user_query: str) -> str:
         """
@@ -57,7 +68,7 @@ class Agent:
             user_query (str): the user question.
 
         Returns:
-            str: the query.
+            str: the query, None if the query has not been parsed correctly.
         """
         # self.user_query = user_query
         template = get_prompt_template_with_vars('query_pubmed_json2.txt', ['prompt', 'format_instructions'])
@@ -65,12 +76,16 @@ class Agent:
         prompt = template.format(prompt=user_query, format_instructions=format_instructions)
         output = generate_response(prompt)
         response = output['response']
-        print(f"QUERY:\n{response}\n")
+        print(f"RESPONSE:\n{response}\n")
 
         # Parsing the output
         pydantic_parser = PydanticOutputParser(pydantic_object=QueryPubMed)
-        my_query = pydantic_parser.parse(response)
-        self.query = my_query.query
+        try:
+            my_query = pydantic_parser.parse(response)
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+        print(f"QUERY:\n{my_query.query}\n")
         return my_query.query
 
     def get_sub_questions(self, user_query: str) -> list[str]:
@@ -87,8 +102,9 @@ class Agent:
         prompt = template.format(question=user_query)
         output = generate_response(prompt)
         response = output['response']
+        print(response)
         sub_questions = get_list_from_text(response)
-        print(sub_questions)
+        #print(sub_questions)
         return sub_questions
 
     def get_sub_queries(self, sub_questions: list[str], json=False) -> list[str]:
@@ -147,28 +163,31 @@ class Agent:
                 query = self.get_query_json(user_query)
             else:
                 query = self.get_query_few_shot(user_query)
-            pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([query])
+            pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([query], n_papers)
             pubmed_dicts = get_dicts_from_pmids(pmids_list)
+            self.queries = query
 
         elif sub_queries:
             # Generate sub queries to expand the search
             sub_questions = self.get_sub_questions(user_query)
             sub_queries = self.get_sub_queries(sub_questions, json)
-            pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries, limit=10)
+            self.queries = sub_queries
+            pubmed_dicts = self.retrieve_pubmed_multi_queries(sub_queries, limit=n_papers)
 
             # Filtering the best articles using MedCPT cross encoder
-            _, _, _, articles = get_info_from_dicts(pubmed_dicts)
-            _, indexes = self.med_cpt_cross_enc.get_ranks_articles(user_query, articles)
-            pubmed_dicts = sort_articles(pubmed_dicts, indexes)
-            print(f"len: {len(pubmed_dicts)}")
-            pubmed_dicts = pubmed_dicts[:10]
-            print(f"len: {len(pubmed_dicts)}")
+            # _, _, _, articles = get_info_from_dicts(pubmed_dicts)
+            # _, indexes = self.med_cpt_cross_enc.get_ranks_articles(user_query, articles)
+            # pubmed_dicts = sort_articles(pubmed_dicts, indexes)
+            # print(f"len: {len(pubmed_dicts)}")
+            # pubmed_dicts = pubmed_dicts[:10]
+            # print(f"len: {len(pubmed_dicts)}")
         else:
             if json:
                 query = self.get_query_json(user_query)
             else:
                 query = self.get_query_few_shot(user_query)
             pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
+            self.queries = query
 
         self.articles = pubmed_dicts
         return pubmed_dicts
@@ -186,8 +205,14 @@ class Agent:
             list[dict]: list of dicts containing all the info of the articles.
         """
         #print('Searching for articles using query: ', query)
-        search_result = search_articles(query, max_results=limit)
-        list_dicts = get_dicts_from_pmids(search_result)
+        list_dicts = []
+        if query is None:
+            return list_dicts
+        try:
+            search_result = search_articles(query, max_results=limit)
+            list_dicts = get_dicts_from_pmids(search_result)
+        except Exception as e:
+            print(f"Error: {e}")
         return list_dicts
 
     def retrieve_pubmed_multi_queries(self, queries: list[str], limit: int = 3):
@@ -285,7 +310,7 @@ class Agent:
         """
         _, titles, _, texts = get_info_from_dicts(self.articles)
         contexts = format_string_contexts(titles, texts)
-        template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
+        template = get_prompt_template_with_vars('answer_using_CoT.txt', ["context", "question"])
         prompt = template.format(context=contexts, question=self.user_query)
         output = generate_response(prompt, verbose=verbose)
         response = output['response']
@@ -308,7 +333,7 @@ class Agent:
         prompt = template.format(question=self.user_query, articles_list=articles_list)
         output = generate_response(prompt, verbose=verbose)
         response = output['response']
-        print(response)
+        #print(response)
         return response
 
     def interleaves_chain_of_thought(self, k: int=3, n_steps: int=2, verbose=False) -> list[dict]:
@@ -332,6 +357,7 @@ class Agent:
             prompt = template.format(articles=articles_list, question=self.user_query, cot_sents=cot_sents)
             output = generate_response(prompt, verbose=verbose)
             response = output['response']
+            print('-> ' + response + '\n')
             new_query = response.split("\n")[0]
             CoT_queries.append(new_query)
             print("New query: " + new_query)

@@ -1,5 +1,6 @@
 import textwrap
 import json
+from statistics import mean
 
 
 def format_text(text, width=130):
@@ -127,6 +128,32 @@ def get_ids_from_urls(documents: list[str]) -> list[str]:
         id = url.split("/")[-1]
         ids.append(id)
     return ids
+
+def get_text_snippets_bioasq(item):
+    gt_context = []
+    for elem in item['snippets']:
+        gt_context.append(elem['text'])
+
+    return gt_context
+
+def get_contexts_list(articles):
+    context_list = []
+    for a in articles:
+        context_list.append(a['title'])
+        context_list.append(a['abstract'])
+    return context_list
+
+def compute_means(results):
+    precisions = [d['precision'] if d['precision'] is not None else 0 for d in results]
+    recalls = [d['recall'] if d['recall'] is not None else 0 for d in results]
+    f1_scores = [d['f1'] if d['f1'] is not None else 0 for d in results]
+    times = [d['time_ex'] if d['time_ex'] is not None else 0 for d in results]
+
+    mean_precision = round(mean(precisions), 4)
+    mean_recall = round(mean(recalls), 4)
+    mean_f1 = round(mean(f1_scores), 4)
+    mean_time = round(mean(times), 2)
+    return mean_precision, mean_recall, mean_f1, mean_time
 
 
 '''questions = read_questions_from_file('../questions1_BioASQ.txt')

@@ -105,10 +105,12 @@ def get_dicts_from_pmids(pmid_list, database: str = 'pubmed'):
         for paper in records:
             try:
                 d = {'id': paper['PMID'], 'title': paper['TI'], 'authors': paper['AU'], 'abstract': paper['AB']}
-            except KeyError:
-                print(f"KeyError for {paper['PMID']}")
-            else:
-                list_dict.append(d)
+            except KeyError as e:
+                # missing_key = e.args[0]
+                d = {'id': paper['PMID'], 'title': paper['TI'], 'authors': 'Authors not available', 'abstract': 'Abstract not available.'}
+                print(f"Abstract not available for {paper['PMID']}")
+            
+            list_dict.append(d)
         handle.close()
 
     return list_dict
