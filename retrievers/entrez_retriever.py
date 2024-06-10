@@ -15,7 +15,11 @@ def search_articles(query, database='pubmed', max_results=5, sort_method='releva
     :return: list of PMIDs
     """
     handle = Entrez.esearch(db=database, term=query, retmax=max_results, sort=sort_method)
-    record = Entrez.read(handle)
+    try:
+        record = Entrez.read(handle)
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
     handle.close()
 
     if int(record["Count"]) > 0:

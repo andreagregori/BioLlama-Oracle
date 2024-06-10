@@ -7,6 +7,7 @@ import time
 import pandas as pd
 from datasets import Dataset
 from datasets import load_from_disk
+from statistics import mean
 
 
 agent = Agent(agent_model="llama2",
@@ -35,6 +36,9 @@ def test1():
 
 
 def test_on_bio_asq_to_json(output_path: str):
+    """
+    Function to test both retrieval end generation phase
+    """
     dataset = read_json_file('../datasets/questions1_BioASQ.json')
     start_dataset = time.time()
 
@@ -103,6 +107,64 @@ def test_on_bio_asq_to_json(output_path: str):
     print(f"Total execution time: {end_dataset - start_dataset}")
 
 
+def test_retrieval_to_json(output_path: str):
+    """
+    Function to test only the retrieval phase
+    """
+    dataset = read_json_file('../datasets/questions1_BioASQ.json')
+
+    data_res = []       # for the JSON dataset
+    
+    i = 0;
+    for q in dataset:
+        print("\n" + str(i+1) + f") Processing: {q['body']} ...")
+
+        agent.retrieve_articles_pubmed(q['body'], n_papers=3, sub_queries=True, json=True)    ### CHANGE THIS ###
+
+        # Retrieval evaluation
+        gt_pmids = get_ids_from_urls(q['documents'])
+        gt_articles = get_dicts_from_pmids(gt_pmids)
+        gt_context = get_text_snippets_bioasq(q)
+        actual_pmids, *_ = get_info_from_dicts(agent.articles)
+        recall = recall_at_k(gt_pmids, actual_pmids)
+        precision = precision_at_k(gt_pmids, actual_pmids)
+        f1 = f1_at_k(gt_pmids, actual_pmids)
+
+        # Removing the authors
+        retrieved_articles = agent.articles
+        for d in retrieved_articles:
+            if 'authors' in d:
+                del d['authors']
+        for d in gt_articles:
+            if 'authors' in d:
+                del d['authors']
+
+        item = {'question': q['body'],
+                'gt_answer': q['ideal_answer'], 'gt_articles': gt_articles, 'gt_context': gt_context,
+                'retrieved_articles': retrieved_articles,
+                'used_queries': agent.queries,       # remove this for MedCPT
+                'recall': recall, 'precision': precision, 'f1': f1}
+        data_res.append(item)
+        i+=1
+
+    try:
+        write_json_file(output_path, data_res)
+    except Exception as e:
+        print(f"Error: {e}")
+
+    # Computing means
+    precisions = [d['precision'] if d['precision'] is not None else 0 for d in data_res]
+    recalls = [d['recall'] if d['recall'] is not None else 0 for d in data_res]
+    f1_scores = [d['f1'] if d['f1'] is not None else 0 for d in data_res]
+    mean_precision = round(mean(precisions), 4)
+    mean_recall = round(mean(recalls), 4)
+    mean_f1 = round(mean(f1_scores), 4)
+
+    print('Recall: ' + str(mean_recall))
+    print('Precision: ' + str(mean_precision))
+    print('F1-score: ' + str(mean_f1))
+
+
 def test_pubmed_query():
     question1 = 'Which disease is caused by mutations in the gene PRF1?'
     question2 = 'What protein is encoded by the GRN gene?'
@@ -112,7 +174,7 @@ def test_pubmed_query():
     #Prompt #1
     agent.get_query_test(question, 'query_pubmed2.txt', 'question')
     print('----------\n')
-
+    '''
     #Prompt #2
     agent.get_query_few_shot(question)
     print('----------\n')
@@ -123,22 +185,25 @@ def test_pubmed_query():
 
     #Prompt #4
     agent.get_sub_questions(question)
+    '''
 
 
 
-file_name = 'med_CPT_1.json'
-test_on_bio_asq_to_json('outputs/' + file_name)
+file_name = 'sub_queries_json_1.json'
+path = 'outputs/01-only_retrieval/' + file_name
+# test_on_bio_asq_to_json(path)
+test_retrieval_to_json(path)
 
-results = read_json_file('outputs/' + file_name)
-mean_precision, mean_recall, mean_f1, mean_time = compute_means(results)
-print('Recall: ' + str(mean_recall))
-print('Precision: ' + str(mean_precision))
-print('F1-score: ' + str(mean_f1))
-print('Mean time: ' + str(mean_time))
+# results = read_json_file(path)
+# mean_precision, mean_recall, mean_f1, mean_time = compute_means(results)
+# print('Recall: ' + str(mean_recall))
+# print('Precision: ' + str(mean_precision))
+# print('F1-score: ' + str(mean_f1))
+# print('Mean time: ' + str(mean_time))
 
 #loaded_dataset = load_from_disk('outputs/answer_from_context')
 #df = loaded_dataset.to_pandas().to_csv('outputs/answer_from_context.csv')
 
-#test1()
+
 
 

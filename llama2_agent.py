@@ -55,10 +55,12 @@ class Agent:
         #self.user_query = user_query
         template = get_prompt_template_with_vars(template_name, [variable])
         prompt = template.format(question=user_query)
-        output = generate_response(prompt, verbose=True)
+        output = generate_response(prompt, verbose=False)
         response = output['response']
-        print(response)
-        return response
+        #print(response)
+        query = response.split("\n")[1]
+        print('Query: ' + query)
+        return query
 
     def get_query_json(self, user_query: str) -> str:
         """
@@ -121,7 +123,12 @@ class Agent:
         sub_queries = []
         for q in sub_questions:
             if json:
-                sub_queries.append(self.get_query_json(q).lower())
+                query = self.get_query_json(q)
+                try:
+                    query = query.lower()
+                    sub_queries.append(query)
+                except:
+                    pass
             else:
                 sub_queries.append(self.get_query_few_shot(q).lower())
         sub_queries = list(set(sub_queries))
@@ -135,7 +142,8 @@ class Agent:
                                 med_cpt=False,
                                 query_and_medcpt=False,
                                 json=False,
-                                sub_queries=False) -> list[dict]:
+                                sub_queries=False,
+                                test=False) -> list[dict]:
         """
         Retrieves articles from PubMed in different ways.
 
@@ -152,7 +160,11 @@ class Agent:
             list[dict]: a list of dicts containing al the info of the articles.
         """
         self.user_query = user_query
-        if med_cpt:
+        if test:
+            query = self.get_query_test(user_query, 'query_pubmed2.txt', 'question')
+            pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
+            self.queries = query
+        elif med_cpt:
             # Use MedCPT as retriever
             pmids_list = self.med_cpt_retriever.retrieve_documents_pmids([user_query], n_papers)
             pubmed_dicts = get_dicts_from_pmids(pmids_list)
