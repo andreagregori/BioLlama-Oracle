@@ -2,7 +2,6 @@ import faiss
 import torch
 import numpy as np
 import json
-import time
 from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
 
 faiss_dir = 'faiss_indexes/'

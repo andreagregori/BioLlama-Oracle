@@ -29,7 +29,7 @@ class Agent:
         output = llm_chain.predict(prompt=question)
         print(output)
 
-    def get_query_few_shot(self, user_query: str) -> str:
+    def get_query_few_shot(self, user_query: str, temp:float = 0) -> str:
         """
         Returns a query prompting the LLM with few-shot examples. Before 
 
@@ -42,7 +42,7 @@ class Agent:
         #self.user_query = user_query
         template = get_prompt_template_with_vars('query_few_shot2.txt', ['prompt'])
         prompt = template.format(prompt=user_query)
-        output = generate_response(prompt)
+        output = generate_response(prompt,temp=temp)
         response = output['response']
         #print(response)
         query = response.split("\n")[0]
@@ -50,7 +50,7 @@ class Agent:
     
     def get_query_test(self, user_query: str, template_name:str, variable:str) -> str:
         """
-        TEST
+        Function to test a given template to generate the query.
         """
         #self.user_query = user_query
         template = get_prompt_template_with_vars(template_name, [variable])
@@ -138,6 +138,7 @@ class Agent:
     def retrieve_articles_pubmed(self,
                                 user_query: str,
                                 n_papers: int = 10,
+                                temp:float = 0,
                                 choose_abstracts='provide_contexts',
                                 med_cpt=False,
                                 query_and_medcpt=False,
@@ -160,6 +161,7 @@ class Agent:
             list[dict]: a list of dicts containing al the info of the articles.
         """
         self.user_query = user_query
+        self.queries = []
         if test:
             query = self.get_query_test(user_query, 'query_pubmed2.txt', 'question')
             pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
@@ -197,9 +199,9 @@ class Agent:
             if json:
                 query = self.get_query_json(user_query)
             else:
-                query = self.get_query_few_shot(user_query)
+                query = self.get_query_few_shot(user_query, temp=temp)
             pubmed_dicts = self.retrieve_pubmed_data(query, n_papers)
-            self.queries = query
+            self.queries.append(query)
 
         self.articles = pubmed_dicts
         return pubmed_dicts
@@ -322,7 +324,7 @@ class Agent:
         """
         _, titles, _, texts = get_info_from_dicts(self.articles)
         contexts = format_string_contexts(titles, texts)
-        template = get_prompt_template_with_vars('answer_using_CoT.txt', ["context", "question"])
+        template = get_prompt_template_with_vars('answer_using_context.txt', ["context", "question"])
         prompt = template.format(context=contexts, question=self.user_query)
         output = generate_response(prompt, verbose=verbose)
         response = output['response']
@@ -372,6 +374,7 @@ class Agent:
             print('-> ' + response + '\n')
             new_query = response.split("\n")[0]
             CoT_queries.append(new_query)
+            self.queries.append(new_query)
             print("New query: " + new_query)
 
             # Retrieving new articles
@@ -404,7 +407,7 @@ class Agent:
         prompt = template.format(context=context, question=self.user_query)
         output = generate_response(prompt, verbose=verbose)
         response = output['response']
-        print(response)
+        # print(response)
         return response    
 
 

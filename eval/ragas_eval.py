@@ -4,7 +4,6 @@ from ragas.metrics import (
     faithfulness,
     context_recall,
     context_relevancy,
-    context_precision,
     answer_similarity,
     answer_correctness
 )
@@ -12,22 +11,22 @@ from ragas import evaluate
 import plotly.graph_objects as go
 
 def plot_graph_for_ragas(res, file_name):
-  # data = {
-  #     'context_relevancy': res['context_relevancy'],
-  #     'faithfulness': res['faithfulness'],
-  #     'answer_relevancy': res['answer_relevancy'],
-  #     'context_recall': res['context_recall'],
-  #     'answer_correctness': res['answer_correctness'],
-  #     'answer_similarity': res['answer_similarity']
-  # }
+#   data = {
+#       'context_relevancy': res['context_relevancy'],
+#       'faithfulness': res['faithfulness'],
+#       'answer_relevancy': res['answer_relevancy'],
+#       'context_recall': res['context_recall'],
+#       'answer_correctness': res['answer_correctness'],
+#       'answer_similarity': res['answer_similarity']
+#   }
 
   data = {
-      'context_relevancy':  0.6028,
-      'faithfulness': 0.7996,
-      'answer_relevancy': 0.6087,
-      'context_recall':  0.6306,
-      'answer_correctness': 0.4608,
-      'answer_similarity': 0.6235
+      'context_relevancy':  0.6523,
+      'faithfulness': 0.7557,
+      'answer_relevancy': 0.7806,
+      'context_recall':  0.6647,
+      'answer_correctness': 0.6647,
+      'answer_similarity': 0.8587
   }
 
 
@@ -62,12 +61,13 @@ def plot_graph_for_ragas(res, file_name):
   fig.write_image('outputs/plots/' + file_name + '.png')
 
 
-file_name = 'chain_of_notes_1'
-path = 'outputs/' + file_name
+file_name = 'answer_from_context'
+path = 'outputs/02-RAGAS/' + file_name
 
+'''
 loaded_dataset = load_from_disk(path)
 print(loaded_dataset)
-# #subset_dataset = loaded_dataset.select(range(5))
+# subset_dataset = loaded_dataset.select(range(5))
 
 result = evaluate(
     loaded_dataset,
@@ -84,6 +84,6 @@ result = evaluate(
 print(result)
 df = result.to_pandas()
 df.to_csv(path + '_RAGAS.csv')
+'''
 
-
-plot_graph_for_ragas(result, file_name=file_name)
+plot_graph_for_ragas(None, file_name=file_name)

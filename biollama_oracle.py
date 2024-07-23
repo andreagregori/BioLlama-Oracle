@@ -19,20 +19,10 @@ agent = Agent(agent_model="llama2",
 
 
 def test1():
-
-    question = ' Do RNA binding Proteins  that bind to adenine uridine (AU)-rich elements (AREs) in the 5 untranslated region (UTR) of mRNAs (AU-RBPs) regulate the DNA Damage Response?'
-    #agent.get_query_json(question)
-    #agent.get_query_few_shot(question)
-    #agent.rag_with_pubmed(question)
-    #agent.rag_with_pubmed(question, sub_queries=True)
-    #agent.chain_of_notes(question)
-    #print(agent.run_prompt(question))
-    #agent.chain_of_notes(question)
-    #print(agent.run_prompt(question))
-    agent.retrieve_articles_pubmed(question, n_papers=10, json=False)
-    #agent.answer_from_context(verbose=True)
-    #agent.chain_of_notes(verbose=True)
-    #agent.interleaves_chain_of_thought(n_steps=3)
+    question = 'What are the phenotypes linked to pathogenic variants in the CCDC88C gene?'
+    agent.retrieve_articles_pubmed(question, n_papers=10)
+    res = agent.answer_from_context(verbose=True)
+    print(res)
 
 
 def test_on_bio_asq_to_json(output_path: str):
@@ -55,7 +45,7 @@ def test_on_bio_asq_to_json(output_path: str):
         print("\n" + str(i+1) + f") Processing: {q['body']} ...")
         start_t = time.time()
 
-        agent.retrieve_articles_pubmed(q['body'], n_papers=10, med_cpt=True)
+        agent.retrieve_articles_pubmed(q['body'], n_papers=10)
         response = agent.answer_from_context()      # change this to test other methods
         
         end_t = time.time()
@@ -83,7 +73,7 @@ def test_on_bio_asq_to_json(output_path: str):
         item = {'question': q['body'], 'answer': response, 'time_ex': time_ex,
                 'gt_answer': q['ideal_answer'], 'gt_articles': gt_articles, 'gt_context': gt_context,
                 'retrieved_articles': retrieved_articles,
-                #'used_queries': agent.queries,       # remove this for MedCPT
+                'used_queries': agent.queries,       # remove this for MedCPT
                 'recall': recall, 'precision': precision, 'f1': f1}
         data_res.append(item)
 
@@ -100,7 +90,7 @@ def test_on_bio_asq_to_json(output_path: str):
     try:
         write_json_file(output_path, data_res)
         dataset = Dataset.from_dict(data)
-        dataset.save_to_disk('outputs/med_CPT_1')        # change name year
+        dataset.save_to_disk('outputs/CoT_1')        # change name year
     except Exception as e:
         print(f"Error: {e}")
     
@@ -119,7 +109,8 @@ def test_retrieval_to_json(output_path: str):
     for q in dataset:
         print("\n" + str(i+1) + f") Processing: {q['body']} ...")
 
-        agent.retrieve_articles_pubmed(q['body'], n_papers=3, sub_queries=True, json=True)    ### CHANGE THIS ###
+        agent.retrieve_articles_pubmed(q['body'], n_papers=10, temp=50)    ### CHANGE THIS ###
+        #agent.interleaves_chain_of_thought(n_steps=3)
 
         # Retrieval evaluation
         gt_pmids = get_ids_from_urls(q['documents'])
@@ -166,6 +157,9 @@ def test_retrieval_to_json(output_path: str):
 
 
 def test_pubmed_query():
+    """
+    Function to test the methods to generate the query
+    """
     question1 = 'Which disease is caused by mutations in the gene PRF1?'
     question2 = 'What protein is encoded by the GRN gene?'
 
@@ -188,21 +182,102 @@ def test_pubmed_query():
     '''
 
 
+def test_on_custom_dataset(dataset_path, output_path):
+    """
+    Function to test both retrieval end generation phase on the custom dataset
+    """
+    dataset = read_json_file(dataset_path)
+    start_dataset = time.time()
 
-file_name = 'sub_queries_json_1.json'
-path = 'outputs/01-only_retrieval/' + file_name
-# test_on_bio_asq_to_json(path)
-test_retrieval_to_json(path)
+    data_res = []       # for the JSON dataset
 
-# results = read_json_file(path)
-# mean_precision, mean_recall, mean_f1, mean_time = compute_means(results)
-# print('Recall: ' + str(mean_recall))
-# print('Precision: ' + str(mean_precision))
-# print('F1-score: ' + str(mean_f1))
-# print('Mean time: ' + str(mean_time))
+    i = 0;
+    for q in dataset:
+        print("\n" + str(i+1) + f") Processing: {q['question']} ...")
+        start_t = time.time()
+
+        agent.retrieve_articles_pubmed(q['question'], n_papers=10)
+        std_response = agent.answer_from_context()
+        cot_response = agent.chain_of_thoughts()
+        con_response = agent.chain_of_notes()
+        
+        end_t = time.time()
+        time_ex = round(end_t - start_t, 2)
+
+        # Retrieval evaluation
+        gt_pmids = q['pmids']
+        gt_articles = get_dicts_from_pmids(gt_pmids)
+        gt_context = get_contexts_list(gt_articles)
+        actual_pmids, *_ = get_info_from_dicts(agent.articles)
+        recall = recall_at_k(gt_pmids, actual_pmids)
+        precision = precision_at_k(gt_pmids, actual_pmids)
+        f1 = f1_at_k(gt_pmids, actual_pmids)
+
+        # Removing the authors
+        retrieved_articles = agent.articles
+        for d in retrieved_articles:
+            if 'authors' in d:
+                del d['authors']
+        for d in gt_articles:
+            if 'authors' in d:
+                del d['authors']
+
+        item = {'report_id': q['report'], 'question': q['question'],
+                'std_response': std_response, 'cot_response': cot_response, 'con_response': con_response,
+                'gt_answer': q['gt_answer'], 'gt_risposta': q['gt_risposta'],
+                'gt_articles': gt_articles, 'gt_context': gt_context,
+                'retrieved_articles': retrieved_articles,
+                'used_queries': agent.queries,       # remove this for MedCPT
+                'recall': recall, 'precision': precision, 'f1': f1}
+        data_res.append(item)
+
+        i+=1
+
+    end_dataset = time.time()
+
+    # Computing means 
+    precisions = [d['precision'] if d['precision'] is not None else 0 for d in data_res]
+    recalls = [d['recall'] if d['recall'] is not None else 0 for d in data_res]
+    f1_scores = [d['f1'] if d['f1'] is not None else 0 for d in data_res]
+    mean_precision = round(mean(precisions), 4)
+    mean_recall = round(mean(recalls), 4)
+    mean_f1 = round(mean(f1_scores), 4)
+
+    print('Recall: ' + str(mean_recall))
+    print('Precision: ' + str(mean_precision))
+    print('F1-score: ' + str(mean_f1))
+
+    try:
+        write_json_file(output_path, data_res)
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    print(f"Total execution time: {end_dataset - start_dataset}")
+
+
+
+
+file_name = 'test_1.json'
+
+path1 = 'outputs/' + file_name
+path2 = 'outputs/01-only_retrieval/' + file_name
+#test_on_bio_asq_to_json(path1)
+test_retrieval_to_json(path2)
+
+'''
+results = read_json_file(path1)
+mean_precision, mean_recall, mean_f1, mean_time = compute_means(results)
+print('Recall: ' + str(mean_recall))
+print('Precision: ' + str(mean_precision))
+print('F1-score: ' + str(mean_f1))
+print('Mean time: ' + str(mean_time))
+'''
 
 #loaded_dataset = load_from_disk('outputs/answer_from_context')
 #df = loaded_dataset.to_pandas().to_csv('outputs/answer_from_context.csv')
+
+#test_on_custom_dataset('../datasets/custom_dataset.json', 'outputs/03-custom_dataset/' + file_name)
+#test1()
 
 
 

@@ -1,5 +1,6 @@
 import textwrap
 import json
+import csv
 from statistics import mean
 
 
@@ -140,7 +141,8 @@ def get_contexts_list(articles):
     context_list = []
     for a in articles:
         context_list.append(a['title'])
-        context_list.append(a['abstract'])
+        if a['abstract'] != 'Abstract not available.':
+            context_list.append(a['abstract'])
     return context_list
 
 def compute_means(results):
@@ -154,6 +156,23 @@ def compute_means(results):
     mean_f1 = round(mean(f1_scores), 4)
     mean_time = round(mean(times), 2)
     return mean_precision, mean_recall, mean_f1, mean_time
+
+
+def csv_to_json(csv_file_path, json_file_path):
+    # Read the CSV file and handle BOM
+    with open(csv_file_path, mode='r', newline='', encoding='utf-8-sig') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        data = [row for row in csv_reader]
+    
+    # Convert to JSON
+    json_data = json.dumps(data, indent=4, ensure_ascii=False)
+    
+    # Save the JSON data to a file
+    with open(json_file_path, mode='w', encoding='utf-8') as json_file:
+        json_file.write(json_data)
+    
+    return json_file_path
+
 
 
 '''questions = read_questions_from_file('../questions1_BioASQ.txt')
